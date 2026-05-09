@@ -26,22 +26,12 @@ services:
       DATABASE_PASSWORD: laundry
       DATABASE_NAME: laundry_db
       DATABASE_PORT: "3306"
-      AUTH_SECRET: docker-dev-secret-change-me
+      AUTH_SECRET: ${AUTH_SECRET:-change-this-secret-in-production}
     depends_on:
       db:
         condition: service_healthy
-    volumes:
-      # Bind mount source for hot reload
-      - ./app:/app/app
-      - ./components:/app/components
-      - ./hooks:/app/hooks
-      - ./lib:/app/lib
-      - ./middleware.ts:/app/middleware.ts
-      # Don't overwrite these from host
-      - /app/node_modules
-      - /app/.next
     command: >
-      sh -c "npx prisma db push --accept-data-loss && npx tsx prisma/seed.ts && npm run dev -- -H 0.0.0.0"
+      sh -c "npx prisma db push --accept-data-loss && npx tsx prisma/seed.ts && node server.js"
 
 volumes:
   db_data:

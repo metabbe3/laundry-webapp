@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { type Lang, getTranslation } from "@/lib/i18n";
 
 interface I18nContextValue {
@@ -15,21 +15,23 @@ const I18nContext = createContext<I18nContextValue>({
   t: (key: string) => key,
 });
 
-function getInitialLang(): Lang {
-  if (typeof window === "undefined") return "en";
-  try {
-    const stored = localStorage.getItem("lang");
-    if (stored === "en" || stored === "id") return stored;
-  } catch {}
-  return "en";
-}
-
 export function I18nProvider({ children }: { children: React.ReactNode }) {
-  const [lang, setLangState] = useState<Lang>(getInitialLang);
+  const [lang, setLangState] = useState<Lang>("en");
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("lang");
+      if (stored === "en" || stored === "id") {
+        setLangState(stored);
+      }
+    } catch {}
+  }, []);
 
   const setLang = useCallback((newLang: Lang) => {
     setLangState(newLang);
-    localStorage.setItem("lang", newLang);
+    try {
+      localStorage.setItem("lang", newLang);
+    } catch {}
     document.cookie = `lang=${newLang};path=/;max-age=31536000`;
   }, []);
 

@@ -38,9 +38,15 @@ export default function RootLayout({
             __html: `try{var t=localStorage.getItem('theme');if(t==='dark'||(!t&&matchMedia('(prefers-color-scheme:dark)').matches))document.documentElement.classList.add('dark')}catch{}`,
           }}
         />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var l=localStorage.getItem('lang');if(l){document.cookie='lang='+l+';path=/;max-age=31536000'}}catch{}`,
+          }}
+        />
       </head>
       <body
         className={`${dmSans.variable} ${instrumentSerif.variable} ${geistMono.variable} antialiased`}
+        suppressHydrationWarning
       >
         <I18nProvider>
           {children}
