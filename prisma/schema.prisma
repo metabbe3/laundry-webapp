@@ -1,231 +1,226 @@
-// This is your Prisma schema file for Laundry Management SaaS
-// Learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client"
   output   = "../app/generated/prisma"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
 }
 
-// ============================================
-// User Management
-// ============================================
-model User {
-  id                String   @id @default(uuid())
-  email             String   @unique
-  passwordHash     String
-  name              String
-  role              Role    @default(EMPLOYEE)
-  branchId          String?
-  phone             String?
-  isActive          Boolean  @default(true)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  branch           Branch?  @relation(fields: [id], references: [id], onDelete: SetNull)
-  orders          Order[]
-  assignedOrders   EmployeeAssignment[]
-  paymentsReceived Payments[]
-
-  @@index([branchId])
-  @@index([role])
-  @@index([email])
-}
-
-// ============================================
-// Branch Management
-// ============================================
 model Branch {
-  id          String   @id @default(uuid())
-  name        String
-  address    String?
-  phone       String?
-  email       String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(uuid())
+  name      String
+  address   String?
+  phone         String?
+  invoiceFooter String?  @db.Text
+  isActive      Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  users       User[]
-  orders      Order[]
+  users     User[]
+  customers Customer[]
+  services  Service[]
+  orders    Order[]
+  stockItems       StockItem[]
+  expenseCategories ExpenseCategory[]
+  expenses         Expense[]
 
   @@index([isActive])
 }
 
-// ============================================
-// Customer Information (NO LOGIN REQUIRED)
-// ============================================
-model Customer {
-  id          String   @id @default(uuid())
-  name        String
-  phone       String   @unique
-  email       String?
-  notes       String?
-  createdAt   DateTime @default(now())
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  phone        String?
+  role         UserRole @default(EMPLOYEE)
+  branchId     String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  orders       Order[]
+  branch Branch @relation(fields: [branchId], references: [id])
 
-  @@unique([phone])
+  @@index([branchId])
 }
 
-// ============================================
-// Service Types & Pricing
-// ============================================
+model Customer {
+  id        String   @id @default(uuid())
+  name      String
+  phone     String
+  email     String?
+  notes     String?  @db.Text
+  branchId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  branch Branch @relation(fields: [branchId], references: [id])
+  orders Order[]
+
+  @@unique([branchId, phone])
+  @@index([branchId])
+}
+
 model Service {
-  id              String              @id @default(uuid())
+  id              String         @id @default(uuid())
   name            String
   description     String?
   pricingType     PricingType
-  basePrice       Decimal              @db.Decimal(10, 2)
-  isActive        Boolean             @default(true)
-  createdAt       DateTime            @default(now())
+  basePrice       Decimal        @db.Decimal(10, 2)
+  commissionType  CommissionType @default(NONE)
+  commissionValue Decimal        @default(0) @db.Decimal(12, 2)
+  isActive        Boolean        @default(true)
+  branchId        String
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
-  orderItems       OrderItem[]
+  branch     Branch      @relation(fields: [branchId], references: [id])
+  orderItems OrderItem[]
 
+  @@unique([branchId, name])
   @@index([isActive])
-}
-
-// ============================================
-// Custom Items (Admin-Defined)
-// ============================================
-model CustomItem {
-  id              String              @id @default(uuid())
-  name            String
-  pricingType     PricingType
-  price           Decimal              @db.Decimal(10, 2)
-  isActive        Boolean             @default(true)
-  createdAt       DateTime            @default(now())
-
-  orderItems       OrderItem[]
-
-  @@index([isActive])
-}
-
-// ============================================
-// Order Management
-// ============================================
-model Order {
-  id                String          @id @default(uuid())
-  orderNumber       String          @unique
-  customerId        String
-  branchId           String
-  status            OrderStatus     @default(RECEIVED)
-  totalAmount       Decimal          @db.Decimal(12, 2) @default(0)
-  paidAmount        Decimal          @db.Decimal(12, 2) @default(0)
-  paymentMethod     PaymentMethod?
-  paymentStatus     PaymentStatus   @default(PENDING)
-  notes             String?
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
-  receivedAt        DateTime?
-  inProgressAt      DateTime?
-  readyAt           DateTime?
-  deliveredAt        DateTime?
-
-  customer          Customer         @relation(fields: [id], references: [id])
-  branch            Branch           @relation(fields: [id], references: [id])
-  orderItems         OrderItem[]
-  statusHistory     OrderStatusHistory[]
-  payments          Payments[]
-  assignments        EmployeeAssignment[]
-
-  @@unique([orderNumber])
-  @@index([customerId])
   @@index([branchId])
+}
+
+model Order {
+  id            String        @id @default(uuid())
+  orderNumber   String        @unique
+  customerId    String
+  status        OrderStatus   @default(RECEIVED)
+  totalAmount    Decimal       @db.Decimal(12, 2) @default(0)
+  discountAmount Decimal       @db.Decimal(12, 2) @default(0)
+  discountType   String?
+  paidAmount     Decimal       @db.Decimal(12, 2) @default(0)
+  paymentStatus PaymentStatus @default(PENDING)
+  notes         String?       @db.Text
+  branchId      String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  receivedAt    DateTime?
+  inProgressAt  DateTime?
+  readyAt       DateTime?
+  deliveredAt   DateTime?
+
+  branch    Branch      @relation(fields: [branchId], references: [id])
+  customer  Customer    @relation(fields: [customerId], references: [id])
+  orderItems OrderItem[]
+  payments   Payment[]
+
+  @@index([customerId])
   @@index([status])
   @@index([paymentStatus])
   @@index([createdAt])
+  @@index([branchId])
 }
 
-// ============================================
-// Order Items (Line Items)
-// ============================================
 model OrderItem {
-  id                String      @id @default(uuid())
-  orderId           String
-  serviceId          String?
-  customItemId       String?
-  quantity           Decimal      @db.Decimal(10, 3)
-  weightKg            Decimal?      @db.Decimal(10, 2)
-  pricePerUnit       Decimal      @db.Decimal(10, 2)
-  subtotal          Decimal      @db.Decimal(12, 2)
-  notes             String?
-  createdAt          DateTime   @default(now())
+  id           String   @id @default(uuid())
+  orderId      String
+  serviceId    String
+  quantity     Decimal  @db.Decimal(10, 3)
+  weightKg     Decimal? @db.Decimal(10, 2)
+  pricePerUnit Decimal  @db.Decimal(10, 2)
+  subtotal     Decimal  @db.Decimal(12, 2)
+  notes        String?
+  createdAt    DateTime @default(now())
 
-  order              Order              @relation(fields: [id], references: [id], onDelete: Cascade)
-  service            Service?          @relation(fields: [id], references: [id])
-  customItem         CustomItem?        @relation(fields: [id], references: [id])
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [id])
 
   @@index([orderId])
+  @@index([serviceId])
 }
 
-// ============================================
-// Order Status History
-// ============================================
-model OrderStatusHistory {
-  id          String      @id @default(uuid())
-  orderId     String
-  status      OrderStatus
-  changedBy   String
+model Payment {
+  id            String        @id @default(uuid())
+  orderId       String
+  amount        Decimal       @db.Decimal(12, 2)
+  paymentMethod PaymentMethod
+  notes         String?
+  createdAt     DateTime      @default(now())
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@index([orderId])
+  @@index([createdAt])
+}
+
+model StockItem {
+  id                    String   @id @default(uuid())
+  name                  String
+  unit                  String
+  currentQuantity       Decimal  @db.Decimal(12, 3) @default(0)
+  lowStockThreshold     Decimal  @db.Decimal(12, 3) @default(0)
+  purchasePricePerUnit  Decimal  @db.Decimal(12, 2) @default(0)
+  isActive              Boolean  @default(true)
+  branchId              String
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  branch    Branch           @relation(fields: [branchId], references: [id])
+  movements StockMovement[]
+
+  @@unique([branchId, name])
+  @@index([isActive])
+  @@index([branchId])
+}
+
+model StockMovement {
+  id          String             @id @default(uuid())
+  stockItemId String
+  type        StockMovementType
+  quantity    Decimal            @db.Decimal(12, 3)
   notes       String?
-  createdAt   DateTime   @default(now())
+  date        DateTime           @default(now())
+  createdAt   DateTime           @default(now())
 
-  order       Order       @relation(fields: [id], references: [id])
-  user        User        @relation(fields: [id], references: [id])
+  stockItem StockItem @relation(fields: [stockItemId], references: [id], onDelete: Cascade)
 
-  @@index([orderId])
-  @@index([createdAt])
+  @@index([stockItemId])
+  @@index([date])
 }
 
-// ============================================
-// Payments
-// ============================================
-model Payments {
-  id              String        @id @default(uuid())
-  orderId         String
-  amount          Decimal       @db.Decimal(12, 2)
-  paymentMethod   PaymentMethod
-  notes           String?
-  receivedBy       String
-  createdAt        DateTime      @default(now())
+model ExpenseCategory {
+  id        String   @id @default(uuid())
+  name      String
+  branchId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  order           Order       @relation(fields: [id], references: [id])
-  user            User        @relation(fields: [id], references: [id])
+  branch   Branch    @relation(fields: [branchId], references: [id])
+  expenses Expense[]
 
-  @@index([orderId])
-  @@index([createdAt])
+  @@unique([branchId, name])
+  @@index([branchId])
 }
 
-// ============================================
-// Employee Assignments
-// ============================================
-model EmployeeAssignment {
-  id          String      @id @default(uuid())
-  orderId     String
-  employeeId  String
-  assignedAt  DateTime   @default(now())
+model Expense {
+  id          String   @id @default(uuid())
+  amount      Decimal  @db.Decimal(12, 2)
+  description String?
+  date        DateTime
+  categoryId  String
+  branchId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  order       Order       @relation(fields: [id], references: [id])
-  employee    User        @relation(fields: [id], references: [id])
+  branch   Branch          @relation(fields: [branchId], references: [id])
+  category ExpenseCategory @relation(fields: [categoryId], references: [id])
 
-  @@index([orderId])
-  @@index([employeeId])
-}
-
-// ============================================
-// Enums
-// ============================================
-enum Role {
-  ADMIN
-  BRANCH_MANAGER
-  EMPLOYEE
+  @@index([categoryId])
+  @@index([date])
+  @@index([branchId])
 }
 
 enum PricingType {
   PER_KG
   PER_ITEM
+}
+
+enum CommissionType {
+  NONE
+  FLAT
+  PERCENTAGE
 }
 
 enum OrderStatus {
@@ -245,4 +240,14 @@ enum PaymentStatus {
   PENDING
   PARTIAL
   PAID
+}
+
+enum UserRole {
+  OWNER
+  EMPLOYEE
+}
+
+enum StockMovementType {
+  IN
+  OUT
 }
